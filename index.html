@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SAAA Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+</head>
+<body class="bg-dark text-light">
+  <div class="container mt-5" id="loginBox">
+    <h2>🔐 Login to SAAA System</h2>
+    <form id="loginForm">
+      <input class="form-control my-2" type="email" id="email" placeholder="Email" required>
+      <input class="form-control my-2" type="password" id="password" placeholder="Password" required>
+      <button class="btn btn-primary w-100">Login</button>
+    </form>
+  </div>
+
+  <div id="dashboard" class="container d-none">
+    <h2>✈️ SAAA Member Dashboard</h2>
+    <table class="table table-dark table-striped mt-4">
+      <thead>
+        <tr><th>Callsign</th><th>Name</th><th>Rank</th><th>Status</th><th>Edit</th></tr>
+      </thead>
+      <tbody id="memberTable"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const loginForm = document.getElementById('loginForm');
+    const dashboard = document.getElementById('dashboard');
+    const loginBox = document.getElementById('loginBox');
+
+    loginForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const email = email.value;
+      const password = password.value;
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const { token } = await res.json();
+      if (token) {
+        localStorage.setItem('token', token);
+        loginBox.classList.add('d-none');
+        dashboard.classList.remove('d-none');
+        loadMembers();
+      } else {
+        alert('Login failed');
+      }
+    });
+
+    async function loadMembers() {
+      const res = await fetch('/api/members', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      const members = await res.json();
+      const table = document.getElementById('memberTable');
+      table.innerHTML = '';
+      members.forEach(m => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td contenteditable="true">${m.callsign}</td>
+          <td contenteditable="true">${m.name}</td>
+          <td contenteditable="true">${m.rank}</td>
+          <td contenteditable="true">${m.status}</td>
+          <td><button class="btn btn-sm btn-success" onclick="save(this, '${m._id}')">Save</button></td>
+        `;
+        table.appendChild(row);
+      });
+    }
+
+    async function save(btn, id) {
+      const row = btn.closest('tr');
+      const data = {
+        callsign: row.cells[0].innerText,
+        name: row.cells[1].innerText,
+        rank: row.cells[2].innerText,
+        status: row.cells[3].innerText
+      };
+      await fetch(`/api/members/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(data)
+      });
+      alert('Updated!');
+    }
+  </script>
+</body>
+</html>
